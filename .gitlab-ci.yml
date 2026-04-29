@@ -1,27 +1,125 @@
-# .gitlab-ci.yml file
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
 
-image: node:latest
-cache:
-  key:
-    files:
-      - package-lock.json
-  paths:
-    - node_modules/
-    - .npm/
+# Cache partagé, clé = package-lock.json
+.default-cache: &default-cache
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules/
+      - .npm/
+
+# Exercice 5 : YAML Anchor — rules communes (pas de tag, pas de commit release)
+.rules-no-release: &rules-no-release
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /^chore: release/'
+      when: never
+    - when: on_success
 
 stages:
+  - .pre
   - validate
   - test
   - build
   - release
   - deploy
 
+# ── .pre ──────────────────────────────────────────────────────────────────────
 install:
   stage: .pre
+  image: node:latest
+  <<: *default-cache
   script:
-    # define cache dir & use it npm!
     - npm ci --cache .npm --prefer-offline
+
+# ── validate ──────────────────────────────────────────────────────────────────
+
+# Exercice 1 & 5 : rules no-release via anchor
 lint:
   stage: validate
+  image: node:latest
+  <<: *default-cache
   script:
     - npm run lint
+  <<: *rules-no-release
+
+# Exercice 3 : se lance uniquement si ENV_TARGET == "canary"
+only-canary:
+  stage: validate
+  image: node:latest
+  script:
+    - echo "Hello Only Canary !"
+  rules:
+    - if: '$ENV_TARGET == "canary"'
+      when: on_success
+    - when: never
+
+# ── test ──────────────────────────────────────────────────────────────────────
+
+# Exercice 1 & 5 : rules no-release via anchor
+unit-test:
+  stage: test
+  image: node:latest
+  <<: *default-cache
+  script:
+    - npm test
+  <<: *rules-no-release
+
+# Exercice 4 : dépend de unit-test via needs:
+integration-test:
+  stage: test
+  image: node:latest
+  needs:
+    - unit-test
+  script:
+    - echo "Hello Integration !"
+  <<: *rules-no-release
+
+# Exercice 2 : visible uniquement dans les Merge Requests
+# Exercice 4 : dépend de integration-test
+e2e-test:
+  stage: test
+  image: node:latest
+  needs:
+    - integration-test
+  script:
+    - echo "Hello E2E !"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+    - when: never
+
+# ── build ─────────────────────────────────────────────────────────────────────
+build:
+  stage: build
+  image: node:latest
+  <<: *default-cache
+  script:
+    - echo "Build OK"
+
+# ── release ───────────────────────────────────────────────────────────────────
+release:
+  stage: release
+  image: node:latest
+  <<: *default-cache
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /^chore: release/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+    - when: never
+  before_script:
+    - git config user.email "$GITLAB_USER_EMAIL"
+    - git config user.name "$GITLAB_USER_NAME"
+    - git remote set-url origin "https://release-it:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+  script:
+    - npx --yes release-it --ci
+
+# ── deploy ────────────────────────────────────────────────────────────────────
+# placeholder — à implémenter ultérieurement
