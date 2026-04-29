@@ -1,5 +1,6 @@
 variables:
   npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  HUSKY: "0"
 
 # Cache partagé, clé = package-lock.json
 .default-cache: &default-cache
@@ -42,10 +43,9 @@ install:
 lint:
   stage: validate
   image: node:latest
-  <<: *default-cache
+  <<: [*default-cache, *rules-no-release]
   script:
     - npm run lint
-  <<: *rules-no-release
 
 # Exercice 3 : se lance uniquement si ENV_TARGET == "canary"
 only-canary:
@@ -64,10 +64,9 @@ only-canary:
 unit-test:
   stage: test
   image: node:latest
-  <<: *default-cache
+  <<: [*default-cache, *rules-no-release]
   script:
     - npm test
-  <<: *rules-no-release
 
 # Exercice 4 : dépend de unit-test via needs:
 integration-test:
@@ -75,9 +74,9 @@ integration-test:
   image: node:latest
   needs:
     - unit-test
+  <<: *rules-no-release
   script:
     - echo "Hello Integration !"
-  <<: *rules-no-release
 
 # Exercice 2 : visible uniquement dans les Merge Requests
 # Exercice 4 : dépend de integration-test
