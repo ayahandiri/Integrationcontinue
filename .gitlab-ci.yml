@@ -114,6 +114,7 @@ release:
       when: manual
     - when: never
   before_script:
+    - git checkout $CI_COMMIT_BRANCH
     - git config user.email "$GITLAB_USER_EMAIL"
     - git config user.name "$GITLAB_USER_NAME"
     - git remote set-url origin "https://release-it:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
