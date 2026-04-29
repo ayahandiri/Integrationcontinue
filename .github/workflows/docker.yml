@@ -8,6 +8,7 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,4 +24,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ci-cd:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/integration-continue:latest
